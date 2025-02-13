@@ -1,0 +1,136 @@
+## Windows elevated (für Windows Update)
+## re-install W3Server
+unInstall-WindowsFeature -name "Web-Server","Web-WebServer","Web-Common-Http","Web-Default-Doc","Web-Dir-Browsing","Web-Http-Errors","Web-Static-Content","Web-Http-Redirect","Web-Health","Web-Http-Logging","Web-Performance","Web-Stat-Compression","Web-Dyn-Compression","Web-Security","Web-Filtering","Web-Basic-Auth","Web-CertProvider","Web-Client-Auth","Web-Cert-Auth","Web-Windows-Auth","Web-App-Dev","Web-Net-Ext45","Web-Asp-Net45","Web-ISAPI-Ext","Web-ISAPI-Filter","Web-Mgmt-Tools","Web-Mgmt-Console"
+## reboot required
+Install-WindowsFeature -name "Web-Server","Web-WebServer","Web-Common-Http","Web-Default-Doc","Web-Dir-Browsing","Web-Http-Errors","Web-Static-Content","Web-Http-Redirect","Web-Health","Web-Http-Logging","Web-Performance","Web-Stat-Compression","Web-Dyn-Compression","Web-Security","Web-Filtering","Web-Basic-Auth","Web-CertProvider","Web-Client-Auth","Web-Cert-Auth","Web-Windows-Auth","Web-App-Dev","Web-Net-Ext45","Web-Asp-Net45","Web-ISAPI-Ext","Web-ISAPI-Filter","Web-Mgmt-Tools","Web-Mgmt-Console"
+
+# PowerCli Experiment
+clear; Connect-VIServer -Server bervcenter.vi.lan -Protocol https -User 'Administrator@vsphere.local' -Password $PW -Force ; $CLUS=Get-Cluster; $NODES=Get-Cluster $CLUS|get-vmhost|select Name|sort-object Name -Descending|grep -Ev "Name|\-"|grep . ; foreach ($NODE in $NODES) {Foreach ($VM in (get-vmhost $NODE | Get-VM | where { $_.PowerState -eq "Suspended" })) {get-vm -Name $VM|select Name,PowerState,VMHost }}
+clear; Connect-VIServer -Server bervcenter.vi.lan -Protocol https -User 'Administrator@vsphere.local' -Password $PW -Force ; $CLUS=Get-Cluster; $NODES=Get-Cluster $CLUS|get-vmhost|select Name|sort-object Name -Descending|grep -Ev "Name|\-"|grep 10.12.1 ; foreach ($NODE in $NODES) {Foreach ($VM in (get-vmhost $NODE | Get-VM | where { $_.PowerState -eq "PoweredOn" })) {get-vm -Name $VM | where { $_.Name -notlike "vCLS*" } | where { $_.Name -notlike "*vcenter*" }|select Name,PowerState,VMHost|Format-Table -AutoSize | grep -Ev "Name|\-\-\-"|grep .}}
+clear; $ADMIN='Administrator@vsphere.local';$PW=Read-Host -MaskInput -prompt 'PW for user $ADMIN'
+Connect-VIServer -Server bervcenter.vi.lan -Protocol https -User $ADMIN -Password $PW -Force ; $CLUS=Get-Cluster; $NODES=Get-Cluster $CLUS|get-vmhost|select Name|sort-object Name -Descending|grep -Ev "Name|\-"|grep 10.12.1 ; $TEST=foreach ($NODE in $NODES) {Foreach ($VM in (get-vmhost $NODE | Get-VM | where { $_.PowerState -eq "PoweredOn" })) {get-vm -Name $VM | where { $_.Name -notlike "vCLS*" } | where { $_.Name -notlike "*vcenter*" }|select Name,PowerState,VMHost|Format-Table -AutoSize | grep -Ev "Name|\-\-\-"| grep . }} ; echo $TEST|Set-Content bud_vms_state.txt
+Connect-VIServer -Server bervcenter.vi.lan -Protocol https -User $ADMIN -Password $PW -Force ; $CLUS=Get-Cluster; $NODES=Get-Cluster $CLUS|get-vmhost|select Name|sort-object Name -Descending|grep -Ev "Name|\-"|grep 10.12.1 ; $TEST=foreach ($NODE in $NODES) {Foreach ($VM in (get-vmhost $NODE | Get-VM | where { $_.PowerState -eq "Suspended" })) {get-vm -Name $VM | where { $_.Name -notlike "vCLS*" } | where { $_.Name -notlike "*vcenter*" }|select Name,PowerState,VMHost|Format-Table -AutoSize | grep -Ev "Name|\-\-\-"| grep . }} ; echo $TEST|Add-Content bud_vms_state.txt
+Connect-VIServer -Server bervcenter.vi.lan -Protocol https -User $ADMIN -Password $PW -Force ; $CLUS=Get-Cluster; $NODES=Get-Cluster $CLUS|get-vmhost|select Name|sort-object Name -Descending|grep -Ev "Name|\-"|grep 10.12.1 ; $TEST=foreach ($NODE in $NODES) {Foreach ($VM in (get-vmhost $NODE | Get-VM | where { $_.PowerState -eq "PoweredOff" })) {get-vm -Name $VM | where { $_.Name -notlike "vCLS*" } | where { $_.Name -notlike "*vcenter*" }|select Name,PowerState,VMHost|Format-Table -AutoSize | grep -Ev "Name|\-\-\-"| grep . }} ; echo $TEST|Add-Content bud_vms_state.txt
+
+# add nagios web user and password
+htpasswd /opt/nagios/etc/htpasswd.users newusername
+
+
+
+[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls11 -bor [System.Net.SecurityProtocolType]::Tls12;
+# Main Command to Install
+Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://isops-static.quest.com/downloads/quest/kace/smaagent/win/Install_KSMAAgent_Lab.ps1.txt'))
+install-module -Name PSWindowsUpdate -force
+Get-WindowsUpdate -MicrosoftUpdate -AcceptAll -install 
+## [-AutoReboot]
+## 7zip NPP AzureDS und WinMerge
+$URI='https://10.10.198.22/isos/7z2301-x64.msi';$OUTFILE='7z2301-x64.msi';invoke-webrequest -SkipCertificateCheck -uri $URI -outfile $env:USERPROFILE\Downloads\$OUTFILE;start-process -FilePath "msiexec.exe" -ArgumentList "/i $env:USERPROFILE\Downloads\$OUTFILE /passive" -wait
+$URI='https://10.10.198.22/isos/azuredatastudio-windows-setup-1.49.1.exe';$OUTFILE='azuredatastudio-windows-setup-1.49.1.exe';invoke-webrequest -SkipCertificateCheck -uri $URI -outfile $env:USERPROFILE\Downloads\$OUTFILE;start-process -FilePath "$env:USERPROFILE\Downloads\$OUTFILE -ArgumentList "/silent" -wait
+$URI='https://github.com/notepad-plus-plus/notepad-plus-plus/releases/download/v8.6/npp.8.6.Installer.x64.exe';$OUTFILE='npp86-Setup.exe';invoke-webrequest -SkipCertificateCheck -uri $URI -outfile $env:USERPROFILE\Downloads\$OUTFILE;start-process -FilePath "$env:USERPROFILE\Downloads\$OUTFILE" -ArgumentList " /S" -wait
+$URI='https://aka.ms/vs/17/release/vc_redist.x64.exe';$OUTFILE='vcredist346147.exe';invoke-webrequest -SkipCertificateCheck -uri $URI -outfile $env:USERPROFILE\Downloads\$OUTFILE;start-process -FilePath "$env:USERPROFILE\Downloads\$OUTFILE" -ArgumentList " /S" -wait
+$URI='https://nodejs.org/dist/v20.10.0/node-v20.10.0-x64.msi';$OUTFILE='node-v20.10.0-x64.msi';invoke-webrequest -SkipCertificateCheck -uri $URI -outfile $env:USERPROFILE\Downloads\$OUTFILE;start-process -FilePath "msiexec.exe" -ArgumentList "/i $env:USERPROFILE\Downloads\$OUTFILE /passive" -wait
+$URI='https://10.10.198.22/isos/WinMerge-2.16.32-x64-Setup.exe';$OUTFILE='WinMerge-2.16.32-x64-Setup.exe';invoke-webrequest -SkipCertificateCheck -uri $URI -outfile $env:USERPROFILE\Downloads\$OUTFILE;start-process -FilePath "$env:USERPROFILE\Downloads\$OUTFILE" -ArgumentList " /norestart /silent" -wait
+$URI='https://10.10.198.22/isos/wusa/kb5031362-x64.msu';$OUTFILE='kb5031362-x64.msu';invoke-webrequest -SkipCertificateCheck -uri $URI -outfile $env:USERPROFILE\Downloads\$OUTFILE;start-process -FilePath "wusa.exe" -ArgumentList "$env:USERPROFILE\Downloads\$OUTFILE" -wait
+$URI='https://aka.ms/vs/17/release/vc_redist.x64.exe';$OUTFILE='vc_redist14.40.33810.exe';invoke-webrequest -SkipCertificateCheck -uri $URI -outfile $env:USERPROFILE\Downloads\$OUTFILE;start-process -FilePath "$env:USERPROFILE\Downloads\$OUTFILE" -wait
+$URI='https://catalog.s.download.windowsupdate.com/c/msdownload/update/software/defu/2024/02/securityhealthsetup_e16941e14861a6d24750ecdf05c548189b33182a.exe';$OUTFILE='MSSP_2.exe';invoke-webrequest -SkipCertificateCheck -uri $URI -outfile $env:USERPROFILE\Downloads\$OUTFILE;start-process -FilePath "$env:USERPROFILE\Downloads\$OUTFILE" -wait
+
+(dir -r 'Filespec'[,'']).Fullname	
+ 
+##windows standalone MSU (KBXXXXXXX)
+$URI=;$OUTFILE=;invoke-webrequest -uri $URI -outfile $env:USERPROFILE\Downloads\$OUTFILE;start-process -FilePath "wusa.exe" -ArgumentList "$env:USERPROFILE\Downloads\$OUTFILE" -wait
+$URI='http://download.windowsupdate.com/c/msdownload/update/software/secu/2021/11/windows10.0-kb5007206-x64_f8ccc7d4574581576e74d86ccacc7fbf47d050f6.msu';$OUTFILE='kb5007206-x64.msu';invoke-webrequest -uri $URI -outfile .\Downloads\$OUTFILE && start-process -FilePath "wusa.exe" -ArgumentList "Downloads\$OUTFILE" -wait
+$URI='http://download.windowsupdate.com/d/msdownload/update/software/updt/2019/04/windows10.0-kb4493440-x64_67cbb2c392f9ed3c983b262b7a8c93875bc88f75.msu';$OUTFILE='kb4493440-x64.msu';invoke-webrequest -SkipCertificateCheck -uri $URI -outfile $env:USERPROFILE\Downloads\$OUTFILE; start-process -FilePath "wusa.exe" -ArgumentList "$env:USERPROFILE\Downloads\$OUTFILE" -wait
+##/norestart /quiet kann man auch noch reinsetzten - kriegt man aber auch kein Feedback mehr
+
+## Linux sudo -s 
+# export KACE_SERVER=k1000-workstation.quest.com;wget -N "https://isops-static.quest.com/downloads/quest/kace/smaagent/linux/ampagent-11.0.119.ubuntu.64.deb";sudo apt install ./ampagent-11.0.119.ubuntu.64.deb
+wget -O- https://isops-static.quest.com/downloads/quest/kace/smaagent/linux/KACE_Install.sh | /bin/bash
+
+export KACE_SERVER="k1000-workstation.quest.com"; export KACE_TOKEN="xmb0eDOOSF53gRdGWim6CMxb9IKRQj_-2hUJddSRlZHH_YzVdFxkfw" ; wget -N "https://isops-static.quest.com/downloads/quest/kace/smaagent/linux/ampagent-11.0.119.ubuntu.64.deb";dpkg -i ./ampagent-11.0.119.ubuntu.64.deb ;apt install -y
+
+sudo apt update ; sudo apt dist-upgrade -y ; sudo apt autoremove
+
+## office oder Window CABs
+$URI='';$OUTFILE='.cab';invoke-webrequest -uri $URI -outfile .\Downloads\$OUTFILE && start-process -FilePath “DISM.exe" -ArgumentList "/Online /Add-Package /PackagePath:"Downloads\$OUTFILE" -wait
+ 
+## Powershell Update
+
+$URI='https://github.com/PowerShell/PowerShell/releases/download/v7.4.6/PowerShell-7.4.6-win-x64.msi' ;$OUTFILE='ps746.msi'; invoke-webrequest -SkipCertificateCheck -uri $URI -outfile $env:USERPROFILE\Downloads\$OUTFILE;start-process -FilePath "msiexec.exe" -ArgumentList "/i $env:USERPROFILE\Downloads\$OUTFILE /passive" -wait
+$URI='https://github.com/PowerShell/PowerShell/releases/download/v7.2.6/PowerShell-7.2.6-win-x64.msi' ;$OUTFILE='ps726.msi'; invoke-webrequest -SkipCertificateCheck -uri $URI -outfile $env:USERPROFILE\Downloads\$OUTFILE;start-process -FilePath "msiexec.exe" -ArgumentList "/i $env:USERPROFILE\Downloads\$OUTFILE /passive" -wait
+$URI='https://github.com/PowerShell/PowerShell/releases/download/v7.2.0/PowerShell-7.2.0-win-x64.msi';$OUTFILE='ps72.msi'
+$URI='https://10.10.198.22/isos/PowerShell-7.4.0-win-x64.msi';$OUTFILE='ps740.msi';invoke-webrequest -SkipCertificateCheck -uri $URI -outfile $env:USERPROFILE\Downloads\$OUTFILE;start-process -FilePath "msiexec.exe" -ArgumentList "/i $env:USERPROFILE\Downloads\$OUTFILE" -wait
+$URI='https://github.com/PowerShell/PowerShell/releases/download/v7.3.2/PowerShell-7.3.2-win-x64.msi';$OUTFILE="$env:USERPROFILE\ps732.msi" ; invoke-webrequest -uri $URI -outfile $OUTFILE && start-process -FilePath "msiexec.exe" -ArgumentList "/i $OUTFILE" -wait
+
+## MS Defender triggered Update
+# Löschen nur wenn nicht anders geht
+# start-process -FilePath "$env:ProgramFiles\Windows Defender\MpCmdRun.exe" -ArgumentList "-removedefinitions -dynamicsignatures" -wait
+start-process -FilePath "$env:ProgramFiles\Windows Defender\MpCmdRun.exe" -ArgumentList "-SignatureUpdate" -wait
+
+
+
+## Windows raus aus AAD und MD
+## wichtig: vorher lokalen Admin anlegen wegen Anmeldung und so
+dsregcmd /debug /leave
+
+## SSMS Update
+$URI='https://10.10.198.22/isos/SSMS19.2-Setup-ENU.exe';$OUTFILE='SSMS19.2-Setup-ENU.exe';invoke-webrequest -SkipCertificateCheck -uri $URI -outfile $env:USERPROFILE\Downloads\$OUTFILE;start-process -FilePath "$env:USERPROFILE\Downloads\$OUTFILE" -ArgumentList  "/passive" -wait
+
+## re-install W3Server
+unInstall-WindowsFeature -name "Web-Server","Web-WebServer","Web-Common-Http","Web-Default-Doc","Web-Dir-Browsing","Web-Http-Errors","Web-Static-Content","Web-Http-Redirect","Web-Health","Web-Http-Logging","Web-Performance","Web-Stat-Compression","Web-Dyn-Compression","Web-Security","Web-Filtering","Web-Basic-Auth","Web-CertProvider","Web-Client-Auth","Web-Cert-Auth","Web-Windows-Auth","Web-App-Dev","Web-Net-Ext45","Web-Asp-Net45","Web-ISAPI-Ext","Web-ISAPI-Filter","Web-Mgmt-Tools","Web-Mgmt-Console"
+## reboot required
+Install-WindowsFeature -name "Web-Server","Web-WebServer","Web-Common-Http","Web-Default-Doc","Web-Dir-Browsing","Web-Http-Errors","Web-Static-Content","Web-Http-Redirect","Web-Health","Web-Http-Logging","Web-Performance","Web-Stat-Compression","Web-Dyn-Compression","Web-Security","Web-Filtering","Web-Basic-Auth","Web-CertProvider","Web-Client-Auth","Web-Cert-Auth","Web-Windows-Auth","Web-App-Dev","Web-Net-Ext45","Web-Asp-Net45","Web-ISAPI-Ext","Web-ISAPI-Filter","Web-Mgmt-Tools","Web-Mgmt-Console"
+
+$URI='https://catalog.s.download.windowsupdate.com/d/msdownload/update/software/updt/2023/01/windows10.0-https://catalog.s.download.windowsupdate.com/d/msdownload/update/software/updt/2023/01/windows10.0-kb5023322-x64-ndp48_79fd048cd66fff7de0e6ced78503fe80253c89a4.msu-x64-ndp48_79fd048cd66fff7de0e6ced78503fe80253c89a4.msu';$OUTFILE='kb5023322-x64.msu.msu';invoke-webrequest -uri $URI -outfile $env:USERPROFILE\Downloads\$OUTFILE ; start-process -FilePath "wusa.exe" -ArgumentList "$env:USERPROFILE\Downloads\$OUTFILE" -wait
+
+$KB_ARRAY = "kb2928120-x64.msu","kb3000850-x64.msu","kb3003057-x64.msu","kb3014442-x64.msu","kb3016437-x64.msu","kb4514371-x64.msu","kb4515846-x64.msu","kb4519108-x64.msu","kb4530745-x64.msu","kb4531181-x64.msu","kb4533004-x64.msu","kb4534134-x64.msu","kb4537482-x64.msu","kb4537503-x64.msu","kb4550970-x64.msu","kb4552959-x64.msu","kb4552962-x64.msu","kb4552966-x64.msu","kb4552967-x64.msu","kb4556853-x64.msu","kb4557900-x64.msu","kb4561673-x64.msu","kb4565540-x64.msu","kb4565580-v3.msu","kb4565581-v2.msu","kb4565585-x64.msu","kb4565588-x64.msu","kb4566371-x64.msu","kb4569732-x64.msu","kb4569737-x64.msu","kb4569739-x64.msu","kb4569741-x64.msu","kb4577071-x64.msu","kb4578623-x64.msu","kb4578981-x64.msu","kb4578984-x64.msu","kb4578986-x64.msu","kb4578989-x64.msu","kb4580358-x64.msu","kb4586823-x64.msu","kb4592495-x64.msu","kb4598275-x64.msu","kb4601092-x64.msu","kb4601094-x64.msu","kb4601349-x64.msu","kb5000853-x64.msu","kb5001393-x64.msu","kb5003220-x64.msu","kb5003681-x64.msu","kb5004285-x64.msu","kb5004958-x64.msu","kb5005106-x64.msu","kb5005391-x64.msu","kb5005627-x64.msu","kb5006729-x64.msu","kb5007255-x64.msu","kb5008603-x64.msu"
+foreach ($KB in $KB_ARRAY)
+{
+  invoke-webrequest -SkipCertificateCheck -uri https://10.10.198.22/isos/wusa/$KB-x64.msu -outfile $env:USERPROFILE\Downloads\$KB-x64.msu
+  start-process -FilePath "wusa.exe" -ArgumentList "$env:USERPROFILE\Downloads\$KB-x64.msu /quiet /norestart /log:$KB.log" -wait
+}
+
+&URI='';invoke-webrequest -SkipCertificateCheck -uri https://10.10.198.22/isos/wusa/$KB -outfile $env:USERPROFILE\Downloads\$KB, start-process -FilePath "wusa.exe" -ArgumentList "$env:USERPROFILE\Downloads\$KB /quiet /norestart /log:$KB.log" -wait
+
+
+
+[string[]]$KB_ARRAY = Get-Content -Path $env:USERPROFILE\Downloads\kb.4.127.txt
+$KB_ARRAY = "KB2928120.msu","kb3000850a.msu","kb3000850b.msu","kb3000850c.msu","kb3000850d.msu","kb3082089.msu","kb4519108.msu","kb4557900.msu","kb4566371.msu","KB4570502a.msu","KB4570502b.msu","KB4570502c.msu","KB4570502d.msu","kb4578623.msu","KB4580469a.msu","KB4580469b.msu","KB4580469c.msu","KB4580469d.msu","Windows6.1-KB2852386-v2-x64.msu"
+foreach ($KB in $KB_ARRAY)
+{
+  start-process -FilePath "wusa.exe" -ArgumentList "$env:USERPROFILE\Downloads\$KB /quiet /norestart" -wait
+}
+$ARRAY_WINFEAT = "Web-Server","Web-Web-Server","Web-Common-Http","Web-Default-Doc","Web-Dir-Browsing","Web-Http-Errors","Web-Static-Content","Web-Http-Redirect","Web-Health","Web-Http-Logging","Web-Performance","Web-Stat-Compression","Web-Dyn-Compression","Web-Security","Web-Filtering","Web-Basic-Auth","Web-CertProvider","Web-Client-Auth","Web-Cert-Auth","Web-Windows-Auth","Web-App-Dev","Web-Net-Ext45","Web-Asp-Net45","Web-ISAPI-Ext","Web-ISAPI-Filter","Web-Mgmt-Tools","Web-Mgmt-Console"
+install-WindowsFeature -Name $ARRAY_WINFEAT
+
+
+read P;clear ; for STR in 1-TheorgServer 2-TheorgPC1 0-Tunnel ; do (ovftool --compress=9 vi://root:$P@192.168.179.254:443/$STR /media/rw-data/TGZ/2112-$STR.ova >> /media/rw-data/TGZ/2112-$STR-bkp.log &) ;done
+#vCenter update / patch
+software-packages install --iso
+
+# ESXi CLI update/patch
+esxcli system maintenanceMode get
+esxcli system maintenanceMode set --enable=true
+# enthaltene Profile werden gelistet:
+esxcli software sources profile list -d /vmfs/volumes/[DS-GUID]/[vmware-depot].zip
+esxcli software profile update -d vmfs/volumes/[DS-GUID]/[vmware-depot].zip -p [esxi-profile]
+reboot -f
+#U3j
+esxcli software sources profile list -d /vmfs/volumes/6615387d-07f3910c/esx_depots/VMware-ESXi-7.0U3j-21053776-depot.zip
+esxcli software profile update -d /vmfs/volumes/6615387d-07f3910c/esx_depots/VMware-ESXi-7.0U3j-21053776-depot.zip -p ESXi-7.0U3j-21053776-standard
+
+# OVA Wurm status anzeigen (%complete)
+export OIFS=$IFS ; export IFS=$'\n' ;clear;while [ 3 -gt 2 ] ; do echo $(date +%H:%M:%S) ; for LOG in $(ls *.log) ; do cat "$LOG" | grep -Ei "iti|ress" ; done; sleep 60 ; done; IFS=$OIFS
+# OVA Wurm Größen kumuliert
+OIFS=$IFS ; IFS=$'\n' ;clear;while [ 3 -gt 2 ]; do GMB=0;for OVA in $(ls *.ova) ; do MB=$(du -ms "$OVA"| cut -f 1) ; du -ms $OVA ; GMB=$(($GMB + $MB)); done; echo $(date +%H:%M:%S)\ \ $GMB ; sleep 60 ; done ; IFS=$OIFS
+# OVA Wurm selbst mit Prozesslimiter, Datum funktioniert noch nicht
+OIFS=$IFS ; IFS=$'\n' ;for VMX in $(find /nfsdata/ova -name "*.vmx" -print| sort) ; do CNT=$(ps -a | grep ovftool | grep -v grep | wc -l) ; OVA=$(echo $VMX |cut -d "/" -f 5) ; OVA=${OVA/vmx/ova} ; while [ $CNT -gt 11 ]; do echo waiting to launch $OVA since $DAT ; sleep 300 ; CNT=$(ps -a | grep ovftool | wc -l); done ; ( DAT=$(date  +%H:%M:%S) ; LOG=${OVA/ova/log} ; echo ovftool --compress=9 $VMX /nfsdata/tgz/$OVA \>/nfsdata/tmp/$LOG &) ; done  ; IFS=$OIFS
+# andere Variante - log nur mit .log Extension
+OIFS=$IFS ; IFS=$'\n' ;for VMX in $(find . -type d -name "23*" -print| while read FOL ; do ls "$FOL"/*.vmx ; done) ; do CNT=$(ps -a | grep ovftool | wc -l) ; OVA=$(echo $VMX |cut -d "/" -f 3) ; OVA=${OVA/vmx/ova} ; while [ $CNT -gt 11 ]; do echo waiting to launch $OVA since $DAT ; sleep 300 ; CNT=$(ps -a | grep ovftool | wc -l); done ; ( DAT=$(date  +%H:%M:%S) ; echo ovftool --compress=9 $VMX ../tgz/$OVA \>../tgz/${OVA/ova/log} &) ; done  ; IFS=$OIFS
+# DAT funktioniert und lass es, wenn OVA schon da ist
+OIFS=$IFS ; IFS=$'\n' ;for VMX in $(find /nfsdata/ova -name "*.vmx" -print| sort) ; do CNT=$(ps -a | grep ovftool | grep -v grep | wc -l) ; OVA=$(echo $VMX |cut -d "/" -f 5) ; OVA=${OVA/vmx/ova} ; date  +%H:%M:%S>/tmp/date.txt ; DAT=$(cat /tmp/date.txt) ; while [ $CNT -gt 4 ]; do echo waiting to launch $OVA since $DAT ; sleep 300 ; CNT=$(ps -a | grep ovftool | wc -l); done ; ( LOG=${OVA/ova/log} ; date  +%H:%M:%S>/tmp/date.txt ; if [ ! -f /nfsdata/tgz/$OVA ] ; then echo ovftool --compress=9 $VMX $OVA \>$LOG ; fi &); done  ; IFS=$OIFS; unset OIFS; rm /tmp/date.txt ; unset DAT
+
+# einfach mal Backup von einem Server in DRE
+clear ; OIFS=$IFS ; IFS=$'\n' ;if [ -x $PW ]; then read -sp "PWD " PW ; fi ; for VM in $(/home/admn/OVA/ovftool/ovftool "vi://udoka@vi.lan:$PW@10.10.198.8/Dresden/host/10.10.206.33/Resources/zz_Backup"|grep -Eiv "error") ; do VM=${VM/  /} ; CNT=$(ps -a | grep ovftool | grep -v grep | wc -l) ;while [ $CNT -gt 3 ]; do echo waiting to launch $VM; sleep 300 ; CNT=$(ps -a | grep ovftool | wc -l); done ; (echo /home/admn/OVA/ovftool/ovftool --compress=9  "vi://udoka@vi.lan:$PW@10.10.198.8/Dresden/host/10.10.206.33/Resources/zz_Backup/$VM" "/opt/nfsdata/$VM.ova" \> /opt/nfsdata/tmp/$VM.log &); done ;IFS=$OIFS ; unset OIFS
+# traverse vCenter all the way down and catch from list
+clear ; OIFS=$IFS ; IFS=$'\n' ;if [ -x $PW ]; then read -sp "PWD " PW ; fi;for HOST in $(ovftool "vi://udoka@vi.lan:$PW@10.10.198.8/Berlin/host"|grep -iv error) ; do HOST=${HOST/  /} ; HOST=${HOST/\//} ; for RP in $(ovftool "vi://udoka@vi.lan:$PW@10.10.198.8/Berlin/host/$HOST/Resources"|grep -Eiv "2406|error"); do RP=${RP/  /}; RP=${RP/\//} ;for VM in $(ovftool "vi://udoka@vi.lan:$PW@10.10.198.8/Berlin/host/$HOST/Resources/$RP"|grep -Eiv "2406|error") ; do VM=${VM/  /} ; if [ ! -z $(grep $VM /tmp/p-off.txt) ] ; then CNT=$(ps -a | grep ovftool | grep -v grep | wc -l) ;while [ $CNT -gt 4 ]; do echo waiting to launch $VM; sleep 300 ; CNT=$(ps -a | grep ovftool | wc -l); done ; (echo ovftool --compress=9  "vi://udoka@vi.lan:$PW@10.10.198.8/Berlin/host/$HOST/Resources/$RP/$VM" "/nfsdata/tgz/$VM.ova" \> /nfsdata/tmp/$VM.log &); fi ; done ; done ; done ;IFS=$OIFS ; unset OIFS
+clear ; OIFS=$IFS ; IFS=$'\n' ;if [ -x $PW ]; then read -sp "PWD " PW ; fi;for RP in $(/home/admn/ovftool/ovftool "vi://root:$PW@10.10.192.152"| grep -Eiv "error|BERTRML"); do RP=${RP/\//}; RP=${RP/  /}; for VM in $(/home/admn/ovftool/ovftool "vi://root:$PW@10.10.192.152/$RP"| grep -Eiv "error|BERTRML"); do VM=${VM/\//};VM=${VM/  /}; CNT=$(ps -a | grep ovftool | grep -v grep | wc -l) ;while [ $CNT -gt 2 ]; do echo waiting to launch $VM; sleep 3 ; CNT=$(ps -a | grep ovftool | wc -l); done ;(echo /home/admn/ovftool/ovftool --compress=9  "vi://root:$PW@10.10.192.152/$RP/$VM" /home/admn/OVA/$VM.ova \> /home/admn/OVA/log/$VM.log &) ; done ; done ; IFS=$OIFS ; unset $OIFS
