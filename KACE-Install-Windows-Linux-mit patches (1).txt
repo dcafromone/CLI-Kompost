@@ -12,6 +12,10 @@ Connect-VIServer -Server bervcenter.vi.lan -Protocol https -User $ADMIN -Passwor
 Connect-VIServer -Server bervcenter.vi.lan -Protocol https -User $ADMIN -Password $PW -Force ; $CLUS=Get-Cluster; $NODES=Get-Cluster $CLUS|get-vmhost|select Name|sort-object Name -Descending|grep -Ev "Name|\-"|grep 10.12.1 ; $TEST=foreach ($NODE in $NODES) {Foreach ($VM in (get-vmhost $NODE | Get-VM | where { $_.PowerState -eq "Suspended" })) {get-vm -Name $VM | where { $_.Name -notlike "vCLS*" } | where { $_.Name -notlike "*vcenter*" }|select Name,PowerState,VMHost|Format-Table -AutoSize | grep -Ev "Name|\-\-\-"| grep . }} ; echo $TEST|Add-Content bud_vms_state.txt
 Connect-VIServer -Server bervcenter.vi.lan -Protocol https -User $ADMIN -Password $PW -Force ; $CLUS=Get-Cluster; $NODES=Get-Cluster $CLUS|get-vmhost|select Name|sort-object Name -Descending|grep -Ev "Name|\-"|grep 10.12.1 ; $TEST=foreach ($NODE in $NODES) {Foreach ($VM in (get-vmhost $NODE | Get-VM | where { $_.PowerState -eq "PoweredOff" })) {get-vm -Name $VM | where { $_.Name -notlike "vCLS*" } | where { $_.Name -notlike "*vcenter*" }|select Name,PowerState,VMHost|Format-Table -AutoSize | grep -Ev "Name|\-\-\-"| grep . }} ; echo $TEST|Add-Content bud_vms_state.txt
 
+# add local linux user for tremote checks
+sudo useradd nagios -p "TheNagiosUsersPassword2024+" -d /home/nagios -s /bin/bash
+sudo mkdir -p /home/nagios/.ssh ; touch /home/nagios/.ssh/authorized_keys ;sudo chown -Rv nagios:nagios /home/nagios;sudo chmod -Rv 700 /home/nagios
+
 # add nagios web user and password
 htpasswd /opt/nagios/etc/htpasswd.users newusername
 
